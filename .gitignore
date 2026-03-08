@@ -1,0 +1,103 @@
+# Fichiers LaTeX temporaires
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+# Fichiers de compilation LaTeX
+*.dvi
+*.xdv
+*-converted-to.*
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+# Fichiers latexmk
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
+# Fichiers BibTeX
+*.bbl
+*.blg
+*-blx.bib
+*.brf
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Environnements virtuels Python
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Fichiers de sauvegarde
+*.bak
+*.backup
+*~
+
+# Fichiers temporaires
+*.tmp
+*.temp
+
+# Données sensibles (décommenter si nécessaire)
+# *.csv
+# *.xlsx
+# *.json
+# *.pkl
+# *.pickle
+
+# Modèles ML (décommenter si les fichiers sont trop volumineux)
+# *.h5
+# *.hdf5
+# *.pt
+# *.pth
+# *.ckpt
+# *.joblib
+# *.model

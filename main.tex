@@ -1,0 +1,166 @@
+\documentclass[a4paper,11pt]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+% interligne
+\usepackage{setspace}
+\onehalfspacing
+
+% COULEUR (xcolor requis pour gray!10 utilisé par listings)
+\usepackage{xcolor}
+\definecolor{Valentia}{RGB}{233,78,82}
+\definecolor{Titleblue}{RGB}{0, 0, 255}
+
+\usepackage{geometry}
+\geometry{margin=2.5cm, headheight=14pt}
+
+% En-tête et pied de page sur toutes les pages
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textit{Architecture des Systèmes Intelligents}}
+\fancyhead[R]{\textit{Combinaison de classeurs, explicabilité des modèles}}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyfoot[L]{Université De Dschang}
+\fancyfoot[C]{\thepage}
+\fancyfoot[R]{2025 - 2026}
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyhead[L]{\textit{Architecture des Systèmes Intelligents}}
+  \fancyhead[R]{\textit{Combinaison de classeurs, explicabilité des modèles}}
+  \renewcommand{\headrulewidth}{0.4pt}
+  \fancyfoot[L]{Université De Dschang}
+  \fancyfoot[C]{\thepage}
+  \fancyfoot[R]{2025 - 2026}
+}
+
+\usepackage{float}
+\usepackage{enumitem}
+
+
+\usepackage{listings}
+\usepackage{listingsutf8}
+\lstset{inputencoding=utf8,basicstyle=\ttfamily,breaklines=true,backgroundcolor=\color{gray!10}}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\algnewcommand\algorithmicforeach{\textbf{pour chaque}}
+\algdef{S}[FOR]{ForEach}[1]{\algorithmicforeach\ #1\ \textbf{faire}}
+
+% Numérotation des sections en 1, 2, 3 (sans chapitre)
+\renewcommand{\thesection}{\arabic{section}}
+\numberwithin{figure}{section}
+\numberwithin{table}{section}
+
+% Espacement des titres (sections)
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{2.5ex plus .2ex}{1.5ex plus .2ex}
+\titlespacing*{\subsection}{0pt}{2ex plus .2ex}{1ex plus .2ex}
+\titlespacing*{\subsubsection}{0pt}{1.5ex plus .2ex}{0.8ex plus .2ex}
+
+% Profondeur de la table des matières
+\setcounter{tocdepth}{3}
+
+% Indentation et listes
+\setlength{\parindent}{1.5em}
+\setlist{leftmargin=*, itemsep=2pt}
+
+% Environnements partagés (parties 2 et 3)
+\newenvironment{definition}[1]{\par\medskip\paragraph{Définition (#1).}\leavevmode\noindent}{\par\medskip}
+\newenvironment{pointcle}{\par\medskip\paragraph{Point clé.}\leavevmode\noindent}{\par\medskip}
+\newenvironment{attention}{\par\medskip\paragraph{Attention.}\leavevmode\noindent}{\par\medskip}
+\newenvironment{exemple}[1]{\par\medskip\paragraph{Exemple (#1).}\leavevmode\noindent}{\par\medskip}
+
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+
+\title{Combinaison de classeurs, explicabilité des modèles}
+\author{DNJOMOU YONMBA WILFRIED LOIC  \\
+KENFACK LEONEL \\
+SAGUEU WAKAM DILANE \\
+NZOGNING MBONDA SOCRATE \\}
+\date{Mars 2025}
+
+\begin{document}
+\widowpenalty=3000
+\clubpenalty=3000
+
+\begin{titlepage}
+    \thispagestyle{empty}
+    \centering
+    \includegraphics[width=\textwidth]{entete.png}\\[2.0cm]
+
+    \textsc{Architecture des Systèmes Intelligents}\\[0.5cm]
+
+    % Titre principal
+    \HRule \\[0.4cm]
+    \color{Titleblue}
+    \fontsize{20}{23.4}\selectfont
+    \huge \bfseries Travaux Pratiques: Combinaison de classeurs, explicabilité des modèles \\[0.4cm]
+    \color{black}
+
+    \HRule \\[0.4cm]
+
+
+    \vspace{2cm}
+
+    % Présenté par
+    \fontsize{15}{18}\selectfont
+    \color{black}
+    \textbf{Présenté par :}\\[0.5cm]
+
+    \begin{tabular}{l l}
+        \textbf{DNJOMOU YONMBA WILFRIED LOIC} & \textbf{CM-UDS-24SCI0999} \\
+        \textbf{KENFACK LEONEL} & \textbf{CM-UDS-17SCI0998} \\
+        \textbf{SAGUEU WAKAM DILANE} & \textbf{CM-UDS-24SCI1040} \\
+        \textbf{NZOGNING MBONDA SOCRATE} & \textbf{CM-UDS-19SCI2910} \\
+    \end{tabular}
+
+    \vspace{1cm}
+
+    % SUPERVISEUR
+    \fontsize{15}{18}\selectfont
+    \color{black}
+    \textbf{Superviseur :} Pr. KENGNE TCHENDJI Vianney\\[0.5cm]
+
+    \vfill
+
+    \hrulefill
+
+    \vspace{5mm}
+
+    \centering{\large{\bf Année académique 2025-2026 }}
+\end{titlepage}
+
+\tableofcontents
+\listoffigures
+\listoftables
+\newpage
+
+% Introduction
+\newpage
+\include{revue_litterature/main}
+% Partie 1 : Combinaison de classifieurs
+\newpage
+\include{traitement_donnees/main}
+% Partie 2 : Explicabilité
+\newpage
+\include{cas_1_2/main}
+% Partie 3 : Combinaison et explicabilité
+\newpage
+\include{cas_3/main}
+% Conclusion
+\newpage
+\include{cas_4/main}
+
+\newpage
+\renewcommand{\refname}{Références}
+\bibliographystyle{plain}
+\bibliography{bibliographie}
+
+\end{document}

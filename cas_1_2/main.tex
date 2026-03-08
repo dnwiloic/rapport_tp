@@ -1,2 +1,98 @@
-\section{Interprétabilité Intrinsèque desModèles }
-\section{Explicabilité Post-Hoc des Modèles simples et Opaques }
+\section{Interprétabilité intrinsèque des modèles et explicabilité post-hoc}
+\label{sec:cas1-2}
+
+Les données utilisées sont celles préparées à la section précédente (prétraitement et visualisation). On vise à illustrer deux approches complémentaires de l'explicabilité sur le jeu CKD : (1)~l'\textbf{interprétabilité intrinsèque} via des modèles dont la structure fournit directement des explications (régression logistique, arbre de décision) ; (2)~l'\textbf{explicabilité post-hoc} en expliquant a posteriori un modèle «~boîte noire~» (SVM à noyau) à l'aide de LIME et SHAP.
+
+\subsection{Interprétabilité intrinsèque}
+\label{ssec:cas1-intrinseque}
+
+\paragraph{Régression logistique.}
+Un modèle de régression logistique est entraîné sur les données SMOTE et standardisées. Les \textbf{coefficients} du modèle donnent une interprétation directe : chaque coefficient mesure l'effet d'une augmentation d'une unité de la variable (après standardisation) sur la tendance du modèle à prédire la classe CKD. Un coefficient positif indique un effet favorable au diagnostic CKD, un coefficient négatif un effet «~protecteur~». La figure~\ref{fig:lr-coef} présente ces coefficients triés par valeur absolue. D'après le notebook, les variables à fort effet positif (risque CKD) incluent notamment l'hypertension, le diabète, l'appétit, l'hémoglobine et la gravité spécifique ; à l'inverse, certaines variables (ex.\ certaines mesures de cellules ou d'œdème) ont un effet négatif.
+
+\begin{lstlisting}[style=reportPython]
+lr = LogisticRegression(max_iter=2000, random_state=RANDOM_STATE, class_weight="balanced")
+lr.fit(X_train_scaled, y_train_smote)
+y_pred_lr = lr.predict(X_test_scaled)
+\end{lstlisting}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{04_lr_coefficients.png}
+\caption{Coefficients de la régression logistique (effet sur la prédiction CKD).}
+\label{fig:lr-coef}
+\end{figure}
+
+\paragraph{Arbre de décision.}
+Un arbre de décision est entraîné avec une profondeur maximale de 4 (\texttt{max\_depth=4}) pour rester lisible et éviter le surapprentissage. Chaque chemin de la racine vers une feuille se lit comme une règle «~SI ... ALORS~» : par exemple, «~SI \emph{specific\_gravity} $\leq$ seuil ET \emph{haemoglobin} $\leq$ seuil ALORS forte probabilité CKD~». La figure~\ref{fig:arbre} montre la structure complète de l'arbre (nœuds remplis, étiquettes de classes \texttt{ckd} / \texttt{not ckd}). L'importance des variables (basée sur l'impureté) met en avant, entre autres, \emph{specific\_gravity}, \emph{haemoglobin} et l'albumine, cohérent avec la littérature sur les marqueurs rénaux.
+
+\begin{lstlisting}[style=reportPython]
+dt = DecisionTreeClassifier(max_depth=4, random_state=RANDOM_STATE)
+dt.fit(X_train_scaled, y_train_smote)
+y_pred_dt = dt.predict(X_test_scaled)
+\end{lstlisting}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{05_arbre_decision.png}
+\caption{Arbre de décision (max\_depth=4) pour la prédiction CKD.}
+\label{fig:arbre}
+\end{figure}
+
+\subsection{Explicabilité post-hoc des modèles opaques}
+\label{ssec:cas2-posthoc}
+
+Un \textbf{SVM à noyau RBF} est utilisé comme modèle «~boîte noire~» : il n'offre pas d'interprétation directe des prédictions. L'option \texttt{probability=True} est activée pour exposer \texttt{predict\_proba}, nécessaire à LIME et SHAP. Les performances (exactitude, AUC, matrice de confusion) sont évaluées sur l'ensemble de test ; les valeurs exactes sont reportées dans le notebook. Le modèle sert ensuite de cible pour les explicateurs locaux et globaux.
+
+\begin{lstlisting}[style=reportPython]
+svm = SVC(kernel="rbf", probability=True, random_state=RANDOM_STATE)
+svm.fit(X_train_scaled, y_train_smote)
+y_pred_svm = svm.predict(X_test_scaled)
+\end{lstlisting}
+
+\paragraph{LIME (explications locales interprétables, agnostiques au modèle).}
+LIME approxime localement le comportement du SVM par un modèle interprétable (ex.\ régression linéaire) autour d'une observation donnée. On perturbe cette observation, on récupère les prédictions du SVM, puis on pondère les points par leur proximité et on ajuste un modèle linéaire dont les coefficients sont les «~poids LIME~» : ils indiquent la contribution de chaque variable à la prédiction pour cette observation. La figure~\ref{fig:lime} montre ces poids pour une observation de test (patient) ; les barres vertes (positives) et rouges (négatives) indiquent quelles variables poussent vers ou contre la classe CKD. Une limite connue de LIME est l'instabilité des explications d'une exécution à l'autre (variabilité de l'échantillonnage).
+
+\begin{lstlisting}[style=reportPython]
+def predict_proba_ckd(X_arr):
+    return svm.predict_proba(X_arr)[:, 0]
+explainer_lime = lime.lime_tabular.LimeTabularExplainer(
+    X_train_scaled.values, feature_names=feature_names,
+    class_names=["ckd", "not ckd"], mode="regression", random_state=RANDOM_STATE)
+exp = explainer_lime.explain_instance(instance, predict_proba_ckd, num_features=10)
+\end{lstlisting}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{06_lime_local.png}
+\caption{Poids LIME pour une observation de test : contribution de chaque variable à la probabilité CKD.}
+\label{fig:lime}
+\end{figure}
+
+\paragraph{SHAP (explications additives de Shapley).}
+SHAP repose sur les \textbf{valeurs de Shapley} de la théorie des jeux : chaque variable reçoit une contribution (valeur SHAP) à la prédiction, avec la propriété d'additivité (somme des SHAP = écart entre la prédiction et la moyenne). Un explicateur à noyau (\textbf{KernelExplainer}) est utilisé avec un jeu de fond (échantillon d'entraînement) et une fonction de prédiction donnant la probabilité de la classe CKD. La figure~\ref{fig:shap-local} présente les valeurs SHAP pour la même observation que LIME (explication locale) ; la figure~\ref{fig:shap-global} est un graphique récapitulatif global sur un échantillon du jeu de test : chaque point correspond à une observation, la couleur indique la valeur de la variable et l'axe horizontal la valeur SHAP. On peut ainsi identifier les variables les plus influentes globalement et le sens de leur effet (hautes valeurs en rouge, basses en bleu). Les explications SHAP sont en général plus stables que LIME et offrent une vue à la fois locale (par observation) et globale (résumé sur l'échantillon).
+
+\begin{lstlisting}[style=reportPython]
+def predict_proba_ckd_shap(X):
+    return svm.predict_proba(X)[:, 0]
+background = X_train_scaled.sample(50, random_state=RANDOM_STATE)
+explainer_shap = shap.KernelExplainer(predict_proba_ckd_shap, background, link="logit")
+shap_values_one = explainer_shap.shap_values(instance, nsamples=100)
+\end{lstlisting}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{07_shap_local.png}
+\caption{Valeurs SHAP (explication locale) pour une observation de test.}
+\label{fig:shap-local}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{08_shap_global.png}
+\caption{Résumé SHAP (vue globale) : impact des variables sur la prédiction CKD.}
+\label{fig:shap-global}
+\end{figure}
+
+\subsection{Synthèse}
+
+Les modèles intrinsèquement interprétables (régression logistique, arbre de décision) fournissent directement des règles et des coefficients exploitables pour comprendre les prédictions. Pour un modèle opaque comme le SVM, les méthodes post-hoc LIME et SHAP permettent d'expliquer des prédictions individuelles (LIME, SHAP local) et de résumer l'importance des variables à l'échelle du jeu (SHAP global). La combinaison des deux approches (modèles interprétables pour la transparence et méthodes post-hoc pour les modèles complexes) couvre un large besoin en explicabilité dans le cadre de la prédiction de la maladie rénale chronique.

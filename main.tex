@@ -5,6 +5,7 @@
 \usepackage[french]{babel}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
+\graphicspath{{./}{./notebooks/figures/}}
 \usepackage{booktabs}
 \usepackage{tabularx}
 \usepackage[hidelinks]{hyperref}
@@ -42,16 +43,17 @@
 }
 
 \usepackage{float}
-\usepackage{enumitem}
-
 
 \usepackage{listings}
 \usepackage{listingsutf8}
 \lstset{inputencoding=utf8,basicstyle=\ttfamily,breaklines=true,backgroundcolor=\color{gray!10}}
-\usepackage{algorithm}
-\usepackage{algpseudocode}
-\algnewcommand\algorithmicforeach{\textbf{pour chaque}}
-\algdef{S}[FOR]{ForEach}[1]{\algorithmicforeach\ #1\ \textbf{faire}}
+\lstdefinestyle{reportPython}{language=Python, frame=single, breaklines=true, basicstyle=\ttfamily\small}
+% Packages algorithm/algpseudocode désactivés si non installés (texlive-science).
+% Décommenter si besoin d'écrire des algorithmes :
+% \usepackage{algorithm}
+% \usepackage{algpseudocode}
+% \algnewcommand\algorithmicforeach{\textbf{pour chaque}}
+% \algdef{S}[FOR]{ForEach}[1]{\algorithmicforeach\ #1\ \textbf{faire}}
 
 % Numérotation des sections en 1, 2, 3 (sans chapitre)
 \renewcommand{\thesection}{\arabic{section}}

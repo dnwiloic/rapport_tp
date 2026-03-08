@@ -1,0 +1,1114 @@
+Rapport de Recherche et de Travaux
+Pratiques : De l'Interprétabilité
+Intrinsèque à l'Explicabilité des Systèmes
+d'Ensemble
+Introduction Générale aux Enjeux de la Transparence
+Algorithmique
+L'évolution paradigmatique de l'apprentissage automatique a franchi une étape décisive avec
+l'émergence de modèles à très haute capacité de représentation, tels que les réseaux de
+neurones profonds et les architectures d'apprentissage d'ensemble (Multiple Classifier
+Systems - MCS). Ces systèmes permettent d'atteindre des niveaux de performance prédictive
+inédits, mais ils engendrent invariablement une opacité structurelle qualifiée de problème de la
+« boîte noire ».1 Dans des environnements décisionnels à haut risque, tels que le diagnostic
+médical, la finance quantitative ou la justice pénale, la validité d'une décision automatisée ne
+peut plus reposer exclusivement sur des métriques de performance purement statistiques,
+telles que l'exactitude (accuracy) ou l'aire sous la courbe (AUC). Elle exige une
+compréhensibilité, une justifiabilité et une traçabilité rigoureuses des processus inférentiels.1
+L'explicabilité de l'intelligence artificielle (Explainable AI - XAI) constitue le champ scientifique
+visant à établir une correspondance intelligible, formelle et auditable entre les données
+d'entrée, les transformations mathématiques internes du modèle et la décision finale.1 Le
+présent rapport est conçu comme une exploration exhaustive, structurée sous la forme d'un
+guide de travaux pratiques (TP) de niveau recherche. Cette progression analytique s'articule
+autour de quatre axes méthodologiques fondamentaux : l'interprétabilité intrinsèque des
+modèles par conception, l'explicabilité post-hoc des modèles simples et opaques, l'explicabilité
+spécifique aux architectures de combinaison (notamment le bagging et le boosting), et enfin,
+l'exploration de cadres avancés incluant le méta-apprentissage (stacking), la sélection
+dynamique de classifieurs et l'analyse contrefactuelle.
+Pour ancrer cette exploration théorique dans une réalité empirique tangible, l'ensemble des cas
+d'étude pratiques développés dans ce rapport s'appuie sur la problématique de la prédiction
+de la maladie rénale chronique (Chronic Kidney Disease - CKD). Ce jeu de données de
+référence, issu du référentiel de l'Université de Californie à Irvine (UCI Machine Learning
+Repository), contient 400 instances de patients, chacune caractérisée par 24 variables
+cliniques distinctes.6 Ces variables se divisent en 11 attributs numériques continus (tels que le
+taux d'hémoglobine, la pression artérielle, la créatinine sérique et l'azote uréique du sang) et 13
+attributs catégoriels (tels que la présence de diabète sucré, d'hypertension ou d'anémie).6
+
+L'utilisation de ces données médicales complexes illustre de manière critique l'impératif de
+l'explicabilité : une décision diagnostique engageant le pronostic vital ou le parcours
+thérapeutique d'un patient ne peut en aucun cas être acceptée par le corps médical sans une
+justification causale transparente et physiologiquement cohérente.1
+
+Phase Préparatoire : Traitement des Données et
+Architecture du Cas Pratique
+Avant de déployer les modèles d'apprentissage automatique et les algorithmes d'explicabilité,
+le jeu de données CKD requiert un traitement rigoureux et méthodique. Les données médicales
+issues de cohortes réelles sont intrinsèquement imparfaites et présentent de multiples défis,
+notamment une forte prévalence de valeurs manquantes et un déséquilibre structurel des
+classes cibles.6 L'ingénierie des caractéristiques débute par une stratégie d'imputation
+sophistiquée. L'analyse des données révèle que la suppression des observations incomplètes
+réduirait drastiquement la puissance statistique de la cohorte. Par conséquent, les méthodes
+optimales recommandent l'utilisation de l'algorithme des k-plus proches voisins (KNN Imputer)
+pour estimer et remplacer les valeurs manquantes des variables numériques continues, en
+s'appuyant sur la similarité euclidienne entre les profils des patients.6 Pour les variables
+catégorielles, une imputation par le mode (la valeur la plus fréquente) est privilégiée pour
+maintenir la distribution de base.6
+Une fois les données nettoyées, il est crucial d'adresser le déséquilibre des classes, la cohorte
+présentant généralement un biais vers la classe positive (patients atteints de CKD) ou négative
+selon les sous-échantillons étudiés.3 L'entraînement d'un algorithme sur des données fortement
+déséquilibrées conduit à un biais de prédiction, le modèle tendant à ignorer la classe
+minoritaire pour maximiser son exactitude globale. L'application de la technique de
+suréchantillonnage des minorités synthétiques (SMOTE - Synthetic Minority Over-sampling
+Technique) permet de générer des exemples synthétiques de la classe minoritaire en
+interpolant de nouveaux points dans l'espace des caractéristiques entre les instances
+existantes les plus proches.3 Cette approche rééquilibre la distribution des classes avant
+l'entraînement, garantissant que le modèle capture les motifs discriminants des deux
+catégories de patients.3
+Les données sont ensuite standardisées à l'aide de techniques de mise à l'échelle robuste pour
+limiter l'influence des valeurs aberrantes (outliers) cliniques, puis divisées en utilisant un
+partitionnement stratifié (stratified train-test split). Ce partitionnement garantit que les
+proportions exactes des classes de la maladie rénale chronique sont maintenues entre les
+ensembles d'apprentissage (alloués à 70% ou 80% des données) et de test (20% à 30%),
+permettant ainsi une évaluation non biaisée des capacités de généralisation des modèles.6
+
+Cas Pratique 1 : Interprétabilité Intrinsèque des
+
+Modèles
+La première étape de cette exploration pratique se concentre sur les modèles d'apprentissage
+automatique dits « Glass-Box » (boîtes de verre), dont l'architecture mathématique est
+nativement transparente. Dans ce paradigme, l'interprétabilité n'est pas rajoutée a posteriori,
+mais constitue une propriété structurelle interne au modèle lui-même.1 Un modèle est
+considéré comme intrinsèquement interprétable si un expert humain peut appréhender son
+fonctionnement global et simuler mentalement le calcul menant à une prédiction spécifique.1
+
+Les Modèles Linéaires et Arborescents Simples
+Le point de départ naturel du cas pratique repose sur l'implémentation d'une régression
+logistique pénalisée. Ce modèle statistique classique évalue la probabilité d'occurrence de la
+maladie rénale chronique via une fonction sigmoïde appliquée à une combinaison linéaire des
+variables d'entrée. Formellement, la probabilité conditionnelle s'exprime par l'équation
+, où
+
+.1 L'avantage fondamental de cette
+
+architecture réside dans la lisibilité directe de ses paramètres. Les coefficients pondéraux
+représentent l'influence (le log-odds ratio) de chaque variable biomédicale de manière
+indépendante.1
+Dans la pratique, l'entraînement de la régression logistique sur le jeu de données CKD via la
+bibliothèque scikit-learn en Python permet d'extraire immédiatement un vecteur de
+coefficients. L'analyse de ces poids révèle instantanément quels biomarqueurs augmentent ou
+diminuent le risque pathologique. Par exemple, l'observation d'un coefficient fortement négatif
+associé au taux d'hémoglobine ou à la gravité spécifique de l'urine indique clairement au
+médecin que la diminution physiologique de ces valeurs accroît de manière exponentielle la
+probabilité de développer la maladie. Bien que sa transparence soit totale, ce modèle souffre
+d'un biais élevé : il postule une relation strictement linéaire et additive entre les caractéristiques
+et le log-odds de la cible, échouant ainsi à capturer les interactions complexes (par exemple,
+l'effet combiné d'un âge avancé et de l'hypertension).1
+Pour pallier l'absence de modélisation des interactions tout en conservant l'interprétabilité, le
+cas pratique évolue vers l'entraînement d'un arbre de décision (Classification and Regression
+Trees - CART). Un arbre de décision, lorsqu'il est contraint à une faible profondeur
+(typiquement limitée à 3 ou 4 niveaux), offre une structure de règles logiques propositionnelles
+parfaitement intelligibles.1 Le modèle segmente itérativement l'espace des patients par des
+frontières de décision orthogonales, sélectionnant à chaque nœud la caractéristique qui
+maximise le gain d'information (ou minimise l'impureté de Gini).14 La visualisation de l'arbre,
+générée via des bibliothèques telles que graphviz ou dtreeviz, produit un graphe orienté où
+chaque chemin de la racine à une feuille constitue une règle explicite, par exemple : "SI la
+gravité spécifique de l'urine est inférieure à 1.015 ET le taux d'hémoglobine est inférieur à 10
+g/dL ALORS le diagnostic est Positif pour la CKD avec une probabilité de 95%".1 Néanmoins,
+
+l'interprétabilité d'un arbre de décision s'effondre rapidement dès lors que sa profondeur
+augmente pour tenter de capturer des relations plus fines, le transformant rapidement en un
+enchevêtrement de règles incompréhensibles souffrant d'une variance extrême et d'une
+propension au surapprentissage.1
+
+Les Machines de Boosting Explicables (Explainable Boosting Machines
+- EBM)
+Pour surmonter le mythe du compromis strict entre la performance prédictive absolue et la
+compréhension humaine, le TP introduit une architecture novatrice : les Explainable Boosting
+Machines (EBM). L'EBM, développée par Microsoft Research, représente une avancée majeure
+et s'inscrit dans le cadre mathématique des Modèles Additifs Généralisés avec Interactions
+(GA2M).1 L'hypothèse fondamentale de prédiction de l'EBM s'exprime sous la forme :
+
+Dans cette formulation,
+
+représente la fonction de lien (logit pour la classification binaire de la
+
+CKD),
+capture l'effet non linéaire univarié de la variable , et
+modélise les interactions
+bidimensionnelles les plus significatives automatiquement détectées par l'algorithme.1
+La clé de l'interprétabilité de l'EBM réside dans son processus d'entraînement spécifique,
+appelé boosting cyclique (round-robin).1 Contrairement au gradient boosting traditionnel qui
+construit des arbres de décision multivariés profonds, l'EBM entraîne séquentiellement un
+micro-arbre d'une profondeur maximale d'un seul nœud (stump) en se restreignant à une seule
+caractéristique à la fois.1 L'algorithme itère sur l'ensemble des caractéristiques avec un taux
+d'apprentissage extrêmement faible, mettant à jour les fonctions de forme
+de manière
+purement additive. Ce processus isole formellement l'effet marginal de chaque variable clinique
+tout en neutralisant les effets de la colinéarité, garantissant que l'ordre des caractéristiques
+n'affecte pas le résultat.1
+
+Caractéristique
+
+Régression
+Logistique
+
+Arbre de Décision
+(Profond)
+
+Explainable
+Boosting Machine
+(EBM)
+
+Topologie
+
+Combinaison
+linéaire stricte
+
+Partitionnement
+hiérarchique
+complexe
+
+Additif cyclique
+(Stumps univariés)
+
+Interactions
+
+Aucune (sauf
+ingénierie
+manuelle)
+
+Illimitées, locales et
+enchevêtrées
+
+Détectées
+automatiquement
+et limitées aux
+paires 1
+
+Nature de
+l'Explicabilité
+
+Lecture directe des
+coefficients
+
+Inspection visuelle
+complexe des
+chemins
+
+Fonctions de forme
+univariées exactes
+(2D) 1
+
+Performance
+Prédictive
+
+Faible à Modérée
+
+Modérée (risque de
+surapprentissage)
+
+Très Élevée
+(équivalente à
+Random Forest) 1
+
+Dans l'implémentation de ce cas pratique via la bibliothèque Python interpretml 17, l'instance
+EbmClassification est ajustée sur le jeu de données des patients CKD. L'analyse des résultats
+démontre de manière empirique que l'EBM atteint des performances discriminatives
+comparables aux modèles de boîte noire de référence comme XGBoost (souvent supérieures à
+94% d'exactitude et à 0,95 d'AUC sur le jeu UCI) tout en permettant une inspection visuelle
+directe et sans ambiguïté.1 Le rapport généré par la méthode explain_global() de l'EBM produit
+une interface où chaque fonction
+se comporte comme une table de correspondance
+18
+exacte. Le clinicien peut observer une courbe graphique bidimensionnelle illustrant
+l'augmentation précise du log-odds de la CKD au fur et à mesure de l'évolution de la pression
+artérielle ou de l'âge du patient, sans aucune approximation post-hoc ni perte de fidélité.1
+L'EBM incarne ainsi le paradigme de la transparence par conception, prouvant que l'opacité
+n'est pas une fatalité pour atteindre la haute performance.
+
+Cas Pratique 2 : Explicabilité Post-Hoc des Modèles
+Simples et Opaques
+Lorsque les relations fonctionnelles sous-jacentes d'un problème médical requièrent des
+algorithmes à très haute capacité tels que les réseaux de neurones profonds (Perceptrons
+Multicouches - MLP) ou des machines à vecteurs de support (SVM) à noyaux non linéaires,
+l'interprétabilité intrinsèque est définitivement sacrifiée au profit de la modélisation.1 Le
+système devient une boîte noire totale. Il convient alors de recourir à des méthodes
+d'explicabilité post-hoc. Ces méthodes agissent comme une couche fonctionnelle d'ingénierie
+externe qui cherche à projeter le comportement décisionnel opaque dans un espace de
+représentation compréhensible par l'humain, sans jamais altérer les paramètres ou la structure
+du modèle original.1
+
+Explicabilité Locale par Perturbation : L'approche LIME
+
+Le framework LIME (Local Interpretable Model-agnostic Explanations) vise à justifier une
+prédiction algorithmique individuelle en générant un voisinage de données synthétiques autour
+de l'instance spécifique d'intérêt, et en y ajustant un modèle interprétable localement
+équivalent (tel qu'une régression linéaire régularisée de type Ridge ou Lasso).1
+La mécanique mathématique de LIME cherche à optimiser une fonction objectif précise :
+Dans cette équation,
+
+représente le modèle
+
+opaque global (par exemple, le réseau de neurones prédisant la CKD),
+
+est le modèle
+
+explicatif simple appartenant à la classe de fonctions
+,
+est un noyau de pondération
+(typiquement gaussien) mesurant la proximité mathématique des points de données perturbés
+par rapport au patient évalué, et
+introduit une pénalité limitant la complexité de
+l'explication (afin d'assurer que l'explication finale ne comporte que quelques variables
+humainement assimilables).1
+Dans le cadre du TP sur le diagnostic CKD, LIME est instancié via la bibliothèque Python lime. Un
+profil patient spécifique, prédit par le réseau de neurones avec une probabilité alarmante de
+0,98 d'être atteint de maladie rénale chronique, est sélectionné.6 L'algorithme génère des
+milliers de permutations des caractéristiques cliniques de ce patient (modifiant aléatoirement
+l'âge, la créatinine, le taux de sucre) et interroge le modèle opaque pour observer les variations
+de probabilité de prédiction. LIME ajuste ensuite sa régression pondérée et restitue un
+diagramme à barres horizontal. Ce diagramme démontre visuellement que, pour ce patient
+unique dans son contexte local, c'est la combinaison d'une gravité spécifique de l'urine fixée à
+1.010 et d'un taux d'hémoglobine bas à 9.2 g/dL qui constitue le principal moteur causal de la
+décision clinique du réseau de neurones.1
+Cependant, l'investigation empirique rigoureuse révèle une limite systémique et critique de
+LIME, particulièrement exacerbée sur les données médicales tabulaires complexes : l'instabilité
+de l'explication locale.1 L'espace des caractéristiques d'un modèle non linéaire comporte de
+nombreuses discontinuités abruptes. Lorsque LIME génère ses perturbations gaussiennes,
+l'échantillonnage aléatoire peut franchir ces frontières de décision de manière erratique.
+Conséquence directe : deux exécutions successives de l'algorithme LIME sur le même profil
+patient peuvent engendrer des vecteurs d'importances de variables radicalement divergents.1
+Dans le domaine de la santé, cette instabilité de l'explication est rédhibitoire, car un médecin ne
+peut fonder un protocole thérapeutique sur une justification algorithmique non reproductible.1
+
+Explicabilité Globale et Fondations Issues de la Théorie des Jeux :
+L'approche SHAP
+Pour pallier structurellement l'instabilité de LIME et fournir des garanties mathématiques
+inébranlables d'équité, de cohérence et de nullité, la méthode SHAP (SHapley Additive
+
+exPlanations) est intégrée au pipeline d'évaluation post-hoc.1 Profondément ancrée dans la
+théorie des jeux coopératifs formulée par Lloyd Shapley, la méthode SHAP considère chaque
+prédiction du modèle d'apprentissage automatique comme un « gain » à distribuer
+équitablement entre les variables d'entrée, qui agissent comme des « joueurs » formant des
+coalitions.1
+La valeur de Shapley d'une caractéristique clinique est formellement définie par la moyenne
+pondérée de ses contributions marginales à travers l'ensemble des sous-ensembles possibles
+de variables :
+
+où
+
+des 24 variables biomédicales du patient, et
+variables de la coalition
+mathématique).1
+
+représente l'ensemble complet
+
+désigne l'évaluation du modèle restreint aux
+
+(les variables absentes étant marginalisées par espérance
+
+SHAP offre une propriété mathématique unique et fondamentale : l'additivité locale (ou
+efficacité).1 La somme de l'ensemble des valeurs SHAP attribuées aux caractéristiques d'un
+patient correspond exactement à la différence entre la prédiction individuelle du modèle pour
+ce patient et la prédiction moyenne du modèle sur l'ensemble de la population de référence.
+
+Critère d'Évaluation
+
+LIME (Local Interpretable
+Model-agnostic
+Explanations)
+
+SHAP (SHapley Additive
+exPlanations)
+
+Fondation Théorique
+
+Approximation par modèle
+de substitution local
+(Surrogate)
+
+Théorie des jeux
+coopératifs (Valeurs de
+Shapley) 1
+
+Stabilité des Explications
+
+Faible (dépendante de
+l'échantillonnage gaussien
+local) 1
+
+Très Élevée (garantie
+mathématique d'unicité et
+de consistance)
+
+Additivité Exacte
+
+Non garantie
+
+Garantie
+mathématiquement
+(Propriété d'Efficacité) 1
+
+Coût Computationnel
+
+Modéré
+
+Très Élevé (pour la méthode
+KernelSHAP agnostique)
+1
+
+Portée de l'Analyse
+
+Exclusivement locale
+
+Locale et Globale (via
+l'agrégation des valeurs
+SHAP individuelles) 1
+
+Dans le déroulement du TP, le calcul des valeurs SHAP est orchestré en Python via l'objet
+shap.KernelExplainer pour le réseau de neurones.24 L'analyse globale générée, magnifiquement
+visualisable au travers d'un graphique en essaim (beeswarm plot ou summary_plot), offre une
+radiographie complète du comportement de la boîte noire. Ce graphique démontre de façon
+irréfutable que des valeurs physiologiquement réduites de la gravité spécifique de l'urine et du
+taux d'hémoglobine, couplées à des niveaux pathologiquement élevés de créatinine sérique,
+poussent universellement la probabilité de prédiction vers la classe positive pour la maladie
+rénale chronique à travers l'ensemble de la cohorte de test.1 La convergence parfaite entre
+l'expertise médicale attendue et l'explication globale de SHAP permet de sceller la confiance
+(trust) dans le déploiement opérationnel du modèle opaque.3
+
+Cas Pratique 3 : Explicabilité des Modèles de
+Combinaison (Bagging et Boosting)
+L'utilisation systématique de systèmes multi-classifieurs (Ensemble Learning) constitue le
+paradigme dominant de l'apprentissage automatique moderne pour maximiser la robustesse
+prédictive et minimiser les erreurs de généralisation sur des données complexes.1 Ces
+approches, qui dominent les compétitions de type Kaggle et les applications industrielles
+critiques, se divisent principalement en méthodes parallèles (Bagging) et séquentielles
+(Boosting).1
+Leur efficacité empirique s'appuie sur des justifications théoriques profondes. Le théorème du
+jury de Condorcet démontre que l'agrégation par vote majoritaire de décisions issues de
+classifieurs indépendants et faiblement compétents (ayant une probabilité de succès
+) fait converger la probabilité d'une décision collective correcte asymptotiquement
+vers 1 lorsque la taille de l'ensemble croît.1 D'un point de vue statistique, l'identité de
+Krogh-Vedelsby postule formellement que l'erreur quadratique d'un ensemble de modèles est
+rigoureusement égale à la moyenne des erreurs individuelles diminuée de la diversité
+(l'ambiguïté ou la variance des prédictions) entre ces modèles.1
+Cependant, cette agrégation provoque un phénomène redoutable pour la transparence :
+l'explosion combinatoire de la dimension de Vapnik-Chervonenkis (dimension VC). Une Forêt
+Aléatoire composée de centaines d'arbres génère une frontière de décision en escalier d'une
+complexité massive, rendant la décomposabilité et la simulabilité mentale humainement
+impossibles. Le modèle devient une boîte noire structurelle.1
+
+Scénario Bagging : Forêts Aléatoires, TreeSHAP et Extraction de
+
+Règles Stables (SIRUS)
+Le bagging (Bootstrap Aggregating) vise principalement à réduire la variance de la prédiction
+en entraînant de multiples apprenants instables, tels que des arbres de décision non élagués,
+sur des sous-échantillons de données tirés aléatoirement avec remise depuis le jeu de données
+d'origine.1 Dans le cadre du diagnostic de la maladie rénale chronique, l'entraînement d'une
+forêt aléatoire de 500 arbres fournit une prédiction d'une fiabilité exceptionnelle, imperméable
+au bruit statistique, mais elle engendre une myriade de chemins décisionnels locaux souvent
+contradictoires.1
+Pour interpréter avec exactitude cette forêt aléatoire, le calcul de la méthode SHAP agnostique
+(KernelSHAP) s'avère mathématiquement rédhibitoire en raison de sa complexité exponentielle
+en
+, nécessitant l'évaluation d'un nombre incalculable de coalitions de variables.1 La
+solution apportée dans ce cas pratique est l'utilisation de l'algorithme TreeSHAP. Conçu
+spécifiquement pour les ensembles arborescents, TreeSHAP exploite l'architecture interne des
+arbres pour calculer les valeurs de Shapley exactes avec une complexité drastiquement réduite
+à un temps polynomial
+
+(où
+
+désigne le nombre d'arbres,
+
+le nombre
+
+maximal de feuilles, et
+la profondeur maximale).1 En naviguant dans la structure nodale de la
+forêt via une programmation dynamique de mémorisation des chemins, TreeSHAP restitue
+instantanément l'attribution causale exacte de chaque variable clinique à la décision finale.1
+Une approche radicalement différente pour désopacifier un modèle de bagging consiste à
+opérer une distillation symbolique via l'algorithme SIRUS (Stable and Interpretable RUle Set).1
+L'instabilité pathologique des algorithmes extracteurs de règles classiques provient des
+perturbations infimes introduites par le rééchantillonnage bootstrap, modifiant la variable de
+séparation dès la racine de l'arbre et modifiant toute la topologie subséquente.1 SIRUS
+contourne brillamment cette limite structurelle en contraignant les divisions (splits) des nœuds
+des arbres sur une grille prédéfinie de quantiles empiriques de la distribution marginale des
+données (par exemple les déciles,
+).1 L'algorithme extrait ensuite tous les chemins de
+l'ensemble de la forêt et applique un filtre fréquentiel pour ne conserver que les règles logiques
+apparaissant le plus régulièrement à travers les multiples arbres.1 Les règles linéairement
+redondantes sont éliminées, et les pondérations finales de ce comité de règles restreint sont
+optimisées via une régression pénalisée de type Ridge.1
+L'implémentation pratique de SIRUS sur le jeu de données de la maladie rénale via la
+bibliothèque Python imodels (ou via le package Julia/R dédié) permet d'extraire un ensemble
+décisionnel extrêmement stable et d'une concision remarquable (généralement contraint à une
+dizaine de règles courtes).1 La stabilité de cet ensemble est validée mathématiquement par
+l'indice de Dice-Sørensen, mesurant le chevauchement des règles extraites sur des échantillons
+de données indépendants, et atteignant couramment des scores supérieurs à 0,95.1 Le clinicien
+
+obtient ainsi un artefact interprétable sous la forme de règles propositionnelles explicites et
+médicalement actionnables ("SI hémoglobine
+10 g/dL ET gravité spécifique
+1.015 ALORS
+risque de CKD = Élevé"), conservant la majorité de la capacité de généralisation de la forêt
+aléatoire d'origine tout en respectant les exigences les plus strictes d'auditabilité
+réglementaire.1
+
+Scénario Distillation de Connaissances : De la Forêt à l'Arbre Unique
+En complément de SIRUS, le TP explore la méthodologie de la distillation de connaissances
+(Knowledge Distillation).1 Cette architecture d'explicabilité globale vise à transférer la logique
+décisionnelle encapsulée dans un modèle de haute capacité, qualifié de modèle « enseignant »
+(la forêt aléatoire de 500 arbres), vers un modèle « étudiant » de structure par essence
+interprétable (un arbre de décision unique).40
+Le protocole expérimental en Python procède en trois séquences distinctes. Premièrement, la
+forêt aléatoire est entraînée de manière classique sur l'ensemble d'apprentissage et optimise
+ses performances discriminatives (atteignant un score F1 proche de 0,98).40 Deuxièmement, le
+jeu de données entier, incluant de manière contre-intuitive l'ensemble de test, subit une
+procédure de ré-étiquetage (relabeling). La variable cible réelle de diagnostic est remplacée
+par les vecteurs de probabilités continues (soft labels) générés en prédiction par la forêt
+aléatoire.40 Ces étiquettes douces agissent comme un vecteur d'information enrichi,
+encapsulant la confiance interne de l'ensemble et sa perception de la similarité inter-classes (le
+« dark knowledge ») de manière bien plus granulaire qu'une simple classification binaire.1
+Enfin, un estimateur DecisionTreeClassifier standard est ajusté sur cet espace de
+caractéristiques ré-étiqueté. Il est instruit de maximiser son ajustement aux décisions
+probabilistes de la forêt sans aucune pénalité de régularisation initiale (profondeur maximale
+illimitée, min_samples_leaf=1), le forçant ainsi à surapprendre délibérément la distribution non
+linéaire imitée de l'ensemble.40 Bien que le processus de distillation garantisse un mimétisme
+quasi-parfait sur les données historisées, le modèle étudiant est ensuite élagué (pruning) pour
+retrouver une taille humainement lisible. Sur des données médicales futures invisibles,
+l'évaluation révèle que cet arbre de décision étudiant préserve de manière étonnante
+l'architecture décisionnelle de son enseignant, au prix d'une perte d'exactitude minime, tout en
+offrant au praticien hospitalier un arbre compact, visualisable hors-ligne et totalement
+indépendant de la charge computationnelle de la forêt d'origine lors de son déploiement en
+production.1
+
+Scénario Boosting : XGBoost et la Complexité de l'Accumulation des
+Résidus
+La famille des algorithmes de Gradient Boosting, implémentée via des bibliothèques
+hautement optimisées telles que XGBoost ou LightGBM, opère selon un paradigme de
+
+croissance séquentielle par correction d'erreurs.1 Le Boosting construit une fonction
+d'approximation de manière purement additive. À chaque itération , le nouvel apprenant
+faible
+(généralement un arbre de décision peu profond) n'est pas ajusté pour modéliser la
+cible directe, mais est entraîné spécifiquement sur les pseudo-résidus de l'étape précédente.
+Ces résidus correspondent très exactement au gradient négatif de la fonction de perte globale
+évalué sur les prédictions du modèle agrégé
+l'itération
+équivaut à la sommation pondérée :
+le taux d'apprentissage (shrinkage).1
+
+.1 Mathématiquement, la prédiction finale à
+où
+
+contrôle
+
+Ce mécanisme correctif ciblé réduit implacablement le biais du modèle global, permettant à
+XGBoost d'atteindre des performances record sur des données tabulaires. Sur le jeu de
+données CKD combiné à une optimisation SMOTE, l'algorithme frôle souvent la perfection avec
+une exactitude oscillant entre 96% et 99%.3 Néanmoins, l'interprétation d'une prédiction finale
+requiert désormais de justifier conceptuellement non seulement le signal principal capturé par
+le premier arbre, mais également l'influence accumulée d'une cascade de centaines de
+micro-corrections locales (les arbres subséquents), dont certaines compensent des erreurs sur
+des sous-régions extrêmement circonscrites de l'espace des données.1 Sans une régularisation
+paramétrique stricte, le modèle mémorise des artéfacts ou du bruit statistique local, et
+l'explication extraite perd toute substance de causalité médicale.1
+Face à ce défi structurel, l'utilisation couplée de l'algorithme TreeSHAP sur XGBoost s'avère non
+seulement recommandée, mais indispensable pour restituer une explicabilité fidèle.1 Outre les
+valeurs d'importance marginales, l'API TreeSHAP permet d'isoler mathématiquement l'indice
+d'interaction SHAP, qui capture l'effet synergique bidimensionnel pur entre deux variables,
+soustrait de leurs effets univariés respectifs. Le cas pratique démontre la génération de tracés
+de dépendance partielle enrichis (SHAP Dependence Plots).45 L'analyse graphique dévoile que
+le risque prédictif de néphropathie diminue drastiquement de façon non linéaire à mesure que
+le niveau d'hémoglobine du patient franchit le seuil clinique critique de 12 g/dL. Mais plus
+fondamentalement, l'incorporation de l'interaction démontre que la variance de cet effet
+marginal est fortement corrélée à la présence simultanée d'un diabète sucré, illustrant par un
+dégradé de couleurs que la co-morbidité modifie substantiellement la courbure de la décision
+algorithmique de XGBoost.1
+
+Cas Pratique 4 : Approches Avancées d'Explicabilité
+L'investigation de ce rapport s'élargit enfin aux cas d'usage avancés et atypiques de
+l'apprentissage d'ensemble, ciblant les architectures hybrides qui nécessitent des cadres
+conceptuels profondément novateurs pour préserver la confiance algorithmique.
+
+L'Explicabilité du Stacking : Le Paradigme XStacking
+Le modèle de méta-apprentissage connu sous le nom de Stacking (Stacked Generalization)
+pousse la logique de combinaison à son paroxysme en superposant hiérarchiquement les
+prédictions.1 Cette architecture entraîne en parallèle un panel de modèles de base d'une très
+forte hétérogénéité algorithmique (par exemple, la juxtaposition d'un Perceptron Multicouche,
+d'un XGBoost, d'une Forêt Aléatoire et d'une Machine à Vecteurs de Support).1 Lors de
+l'inférence, un second algorithme de plus haut niveau, désigné comme le méta-apprenant
+(fréquemment une régression logistique modélisant le consensus), reçoit en entrée un espace
+tensoriel réduit constitué exclusivement des prédictions (les vecteurs de probabilités hors-pli
+ou OOF) produites par la première couche d'apprenants.1
+Ce processus d'abstraction écrase totalement l'espace dimensionnel des caractéristiques
+médicales originelles, provoquant une asymétrie d'information fatale à l'explicabilité : l'analyste
+peut déterminer avec certitude que le méta-apprenant a accordé un poids prépondérant au
+modèle XGBoost pour établir son diagnostic, mais il ignore totalement sur quelles variables
+cliniques initiales l'algorithme XGBoost s'est fondé pour émettre sa probabilité.1
+Le framework novateur XStacking (Explanation-augmented Stacking) propose une solution
+d'ingénierie élégante à cette cécité interprétative en enrichissant délibérément l'espace de
+représentation du méta-apprenant.1 Au cours de la phase de validation croisée hors-pli, la
+procédure algorithmique de XStacking génère non seulement la matrice des prédictions
+pour chaque modèle de base , mais elle exécute également en parallèle l'extracteur
+d'explication approprié pour calculer le vecteur d'attributions des valeurs de Shapley (SHAP)
+pour chaque instance .1 La nouvelle matrice d'apprentissage
+, qui alimentera le
+méta-modèle, concatène prédictions et causalités sous la forme :
+
+En injectant ces vecteurs d'importances normalisés directement au niveau de la fonction de
+perte du méta-modèle, la dimension de l'espace latent augmente substantiellement, passant
+de
+
+(le simple nombre de modèles) à
+
+(où
+
+est le nombre de caractéristiques).1
+
+Propriété Structurelle
+
+Stacking Conventionnel
+
+Framework XStacking
+
+Entrées du
+Méta-Apprenant
+
+Matrice des prédictions
+
+Vecteurs de prédictions
+agrégés aux matrices
+d'attributions SHAP 1
+
+OOF
+
+Dimensionnalité de
+Niveau 1
+
+(Nombre de modèles de
+base)
+
+dimension) 1
+
+Lien avec l'Espace des
+Caractéristiques
+
+Rompu par le changement
+de plan tensoriel
+
+Maintenu nativement,
+traçabilité continue 1
+
+Bénéfice Prédictif
+
+Modéré (sensible à la
+colinéarité des prédictions)
+
+Supérieur (discrimination
+par l'importance des
+variables, atténuation de la
+redondance) 2
+
+(Haute
+
+Cette augmentation spectaculaire de la densité d'information permet non seulement
+d'améliorer la discrimination prédictive finale (en prévenant le surapprentissage lié à des
+modèles dont les probabilités sont fortement corrélées mais justifiées par des motifs erronés),
+mais elle restaure intégralement l'explicabilité de bout-en-bout du pipeline de machine
+learning.2 Sur le cas pratique, le médecin peut auditer la chaîne de décision complète : identifier
+la forte valeur prédictive accordée à la pression artérielle par le classifieur XGBoost, et
+comprendre précisément comment le méta-apprenant final a pondéré et arbitré cette
+information causale face aux déductions contradictoires du réseau de neurones.1 XStacking
+démontre ainsi que performance d'ensemble et transparence ne sont pas mutuellement
+exclusives.2
+
+Sélection Dynamique d'Ensemble et Explicabilité Contextuelle
+Une autre philosophie d'hybridation des modèles repose sur les techniques de sélection
+dynamique de classifieurs (Dynamic Ensemble Selection - DES), implémentées en Python via
+l'excellente bibliothèque DESlib.50 Plutôt que de recourir à une agrégation statique ou pondérée
+de l'ensemble de la cohorte de modèles pour évaluer chaque patient, la logique DES s'adapte à
+la topologie locale des données. Lors de la présentation d'une instance inconnue (un nouveau
+patient suspecté de CKD), l'algorithme ne sollicite pas le vote de l'intégralité du pool. Il définit
+en amont une « Région de Compétence » (Region of Competence - RoC) en calculant, via la
+distance euclidienne, les k-plus proches voisins du patient au sein d'un jeu de données
+historique de validation (DSEL).1
+L'exactitude locale de chaque algorithme expert du pool est alors évaluée mathématiquement
+sur cette région spécifique. Seuls les classifieurs ayant démontré historiquement une
+compétence absolue sur ce voisinage local sont sélectionnés à la volée pour procéder au vote
+de classification (en utilisant des algorithmes tels que KNORA-E pour l'élimination ou KNORA-U
+pour l'union).1
+L'implémentation de la bibliothèque DESlib dans ce cadre hospitalier procure une forme
+d'explicabilité par héritage contextuel et par raisonnement basé sur les cas (Case-Based
+
+Reasoning - CBR).1 L'algorithme justifie son diagnostic non pas en projetant un hyperplan
+mathématique complexe, mais en identifiant et en extrayant les profils cliniques des patients
+historiquement comparables figurant dans la région de compétence. L'explication se formalise
+par l'analogie : le clinicien comprend que l'expert algorithmique X a été mandaté pour prédire le
+statut rénal de ce patient car il a précédemment diagnostiqué avec succès des profils d'anémie
+et d'hypertension strictement similaires.1 Cette transparence par l'exemple (Example-based
+explanation) résonne particulièrement avec la méthodologie cognitive naturelle du corps
+médical.53
+
+Scénario Contrefactuel : Explications par la Diversité et
+l'Actionnabilité (DiCE)
+Pour conclure ce rapport par une dimension opératoire, il est fondamental de souligner que,
+bien que les méthodes fondées sur les attributions statistiques (SHAP, LIME, PFI) fournissent
+une excellente cartographie de l'influence des variables de modélisation, elles demeurent
+descriptives.1 Elles ne prescrivent pas de voie de remédiation tangible pour l'utilisateur.
+L'analyse par la génération d'exemples contrefactuels, introduite et formalisée au travers du
+framework DiCE (Diverse Counterfactual Explanations de Microsoft), aborde le défi de
+l'explicabilité sous le prisme puissant de l'optimisation inverse et du recours (recourse).54
+Face à une instance de patient pronostiquée avec certitude comme positif au développement
+d'une insuffisance rénale aiguë par le modèle XGBoost, la méthode contrefactuelle ne se
+contente pas de lister les facteurs de risque. Elle interroge activement la frontière de décision
+du modèle : "Quelles sont les modifications minimales, cliniquement réalisables, et
+structurellement diverses des caractéristiques du patient qui forceront l'algorithme à inverser
+sa prédiction vers un pronostic de patient sain?".54 DiCE traduit cette interrogation humaine en
+un problème d'optimisation mathématique multiobjectif :
+Dans cette formulation,
+représente la fonction de distance de proximité par rapport au profil original du
+patient,
+est la perte d'adversialité qui contraint formellement le franchissement de la
+frontière de classe cible, et le terme de diversité algorithmique (souvent calculé via le
+déterminant de la matrice de similarité) assure la restitution d'un ensemble hétérogène de
+scénarios de recours.54
+Dans la mise en œuvre pratique de ce TP via la classe dice_ml.Dice(), l'algorithme génère des
+contrefactuels en respectant des contraintes d'immuabilité et de faisabilité physiologique.54 Par
+exemple, l'âge et la prédisposition génétique du patient sont fixés comme invariants, seules des
+caractéristiques comme la pression artérielle, le contrôle glycémique ou le niveau
+d'hémoglobine sont déclarées modifiables au sein de bornes médicalement réalistes.56 Le
+script Python restitue alors une série de plans d'action opposables et cohérents : "Si le taux
+moyen du débit de filtration glomérulaire (eGFR_mean) de ce patient parvenait à être réévalué
+
+cliniquement de 15.39 mL/min à 25.48 mL/min, de façon isolée, alors le modèle de gradient
+boosting prédirait formellement l'absence d'insuffisance rénale".57 Cette dimension
+éminemment prescriptive et actionnable de l'analyse contrefactuelle s'inscrit au cœur des
+exigences du RGPD concernant le droit au recours algorithmique, transformant un outil de
+diagnostic passif en un instrument de planification thérapeutique.54
+
+Synthèse Analytique et Résolution du Compromis
+Performance-Transparence
+L'accumulation systématique de ces méthodes pratiques d'évaluation, du modèle le plus
+élémentaire aux architectures contrefactuelles et méta-apprenantes, conduit indubitablement
+à devoir affronter un défi épistémologique majeur en apprentissage automatique : l'Effet
+Rashomon (ou multiplicité des modèles de Breiman).1 Dans des espaces paramétriques à haute
+dimension typiques des ensembles de données biomédicales, il existe invariablement de
+multiples architectures radicalement différentes (Réseaux de neurones denses, XGBoost
+profond, Forêts Aléatoires étendues, ou EBM) et une myriade de combinaisons
+d'hyperparamètres capables d'atteindre une erreur de généralisation et une exactitude
+statistique quasi-identiques (formant le Rashomon set).1 Paradoxalement, bien que ces
+modèles convergent vers la même performance globale de diagnostic pour la cohorte CKD, ils
+parviennent à ce résultat en s'appuyant sur des réseaux de logiques inférentielles
+diamétralement incompatibles.1
+Se fier aveuglément à l'analyse de l'importance des caractéristiques par une technique
+d'explicabilité unique (telle qu'un unique tracé SHAP) appliquée sur le « meilleur » modèle
+empirique unique crée un biais cognitif redoutable : cela induit le clinicien ou l'auditeur
+réglementaire à postuler à tort la découverte d'une loi causale absolue dans les données.1 Face
+à cette multiplicité, la convergence des efforts d'ingénierie vers le concept de Consensus en
+XAI (XAI Consensus Training ou agrégation robuste des explications) devient un impératif
+d'assurance qualité. Le processus itératif développé dans ce rapport préconise le couplage
+systématique de TreeSHAP avec les ensembles XGBoost, combiné aux modèles de référence
+nativement interprétables comme l'EBM et validé en aval par l'extraction des règles
+symboliques SIRUS.1
+Lorsqu'un biomarqueur tel que l'hémoglobine maintient un profil d'influence causalement
+convergent et unanime à travers la totalité de l'ensemble des modèles du Rashomon set et
+résiste à la variabilité des différentes heuristiques d'explicabilité appliquées (l'effet est positif
+selon LIME, SHAP, EBM et les modèles contrefactuels de DiCE), la robustesse de sa portée
+inférentielle et causale peut être formellement certifiée.1 Toute discordance majeure doit quant
+à elle alerter le data scientist sur l'exploitation probable de corrélations fallacieuses (spurious
+correlations) ou de failles de données par le modèle, exigeant une révision immédiate de
+l'ingénierie des caractéristiques.1
+
+Le tableau de gouvernance suivant (Tableau 2) formalise l'architecture décisionnelle préconisée
+pour la sélection et l'implémentation des cadres d'explicabilité pour les systèmes d'ensemble.
+
+Scénario
+Analytique
+d'Ingénierie
+
+Contrainte
+Opérationnelle
+Dominante
+
+Méthodologie
+Recommandée
+
+Justification et
+Garantie
+Mathématique
+
+Amorçage de
+Projet Médical ou
+Financier Critique
+
+Transparence
+native stricte
+imposée par les
+régulateurs,
+conformité absolue.
+
+Explainable
+Boosting Machine
+(EBM)
+
+Adopte
+l'architecture en
+boîte de verre
+(Glass-box GA2M).
+L'influence de
+chaque variable est
+exacte. Exactitude
+AUC
+empiriquement
+compétitive et non
+discriminée face à
+XGBoost.1
+
+Modélisation
+Héritée
+(Bagging/Boosting
+opaque imposé)
+
+Exigence d'une
+cartographie
+traçable des
+caractéristiques
+garantissant une
+stricte équité
+causale globale.
+
+Analyse par
+TreeSHAP
+
+Fondations
+robustes ancrées
+en théorie des jeux
+coopératifs.
+Algorithme
+garantissant le
+calcul exact de
+l'interaction et de
+l'efficience unitaire
+en temps
+polynomial
+.1
+
+Extraction de
+Systèmes de
+Connaissances
+Experts
+
+Validation humaine
+requise, cohérence
+temporelle absolue,
+intégration aux
+systèmes experts.
+
+Règles Stables de
+l'Algorithme SIRUS
+
+Stabilise l'extraction
+aléatoire par un
+filtrage fréquentiel
+et une
+discrétisation par
+quantiles.
+Reproductibilité
+
+mathématique
+attestée par un
+score de
+Dice-Sørensen
+maximal (>0,95).1
+Intervention au
+Niveau de
+l'Instance Patient
+
+Légalité du droit au
+recours,
+actionnabilité
+médicale, et
+indication d'un
+traitement
+prescriptif.
+
+Explications
+Contrefactuelles
+(DiCE)
+
+Optimisation
+mathématique
+générant des
+permutations sous
+contraintes strictes,
+pointant avec
+précision les seuls
+leviers cliniques
+modifiables
+permettant
+l'inversion d'une
+classification.54
+
+Déploiement
+Embarqué ou Sous
+Contrainte de
+Temps Réel
+
+Optimisation
+drastique du temps
+d'inférence
+(latence), mémoire
+extrêmement
+contrainte.
+
+Distillation de
+Connaissances
+Symbolique
+
+Processus
+d'apprentissage
+d'un arbre étudiant
+sur-paramétré
+capable de
+reproduire
+fidèlement la
+distribution
+"soft-label" non
+linéaire captée par
+la forêt aléatoire
+enseignante.1
+
+Architecture de
+Méta-Apprentissa
+ge Profonde
+
+Préservation
+intégrale du signal
+causal à travers des
+réseaux
+décisionnels
+superposés.
+
+Framework
+XStacking
+
+Intégration
+novatrice des
+valeurs et
+attributions SHAP
+au sein des
+méta-caractéristiqu
+es dimensionnelles,
+prévenant la cécité
+de la dernière
+couche.1
+
+En conclusion de ces travaux, la prétendue dichotomie axiomatique opposant la précision
+prédictive d'un système multi-classifieurs complexe à sa capacité d'interprétation humaine se
+révèle ne plus constituer une frontière théorique infranchissable en science des données. Elle
+résultait fondamentalement d'un paradigme d'ingénierie algorithmique antérieur qui sacrifiait
+structurellement l'exigence explicative au profit de la minimisation hâtive des fonctions de
+perte.1
+S'il est exact que l'apprentissage d'ensemble génère mécaniquement des structures de boîtes
+noires par sa quête itérative de la diversité et de l'hyper-spécialisation locale des modèles de
+base 1, l'orchestration croisée des techniques contemporaines de XAI démontre la maturité de
+la discipline. De l'exactitude des algorithmes polynomiaux TreeSHAP aptes à désamorcer
+analytiquement la complexité de l'agrégation, à la stabilité mathématique des extracteurs de
+règles symboliques SIRUS, en passant par l'actionnabilité pragmatique des modèles de recours
+contrefactuels de DiCE et l'innovation par l'apprentissage méta-enrichi du XStacking, les data
+scientists disposent d'un arsenal méthodologique complet.1 Plus fondamentalement,
+l'émergence de modèles nativement interprétables atteignant l'état de l'art, à l'instar des
+Explainable Boosting Machines (EBM), confirme l'avènement d'une conception structurelle où la
+haute performance n'élude pas la clarté.1
+L'intégration de l'apprentissage automatique aux chaînes de valeur décisionnelles critiques,
+qu'elles concernent le diagnostic médical de pathologies chroniques ou l'évaluation
+automatisée de risques, exige que l'explicabilité transcende le simple rôle d'outil d'audit
+algorithmique post-hoc.1 Elle constitue l'interface universelle de validation éthique, scientifique
+et réglementaire, agissant comme le garant ultime que la pure performance statistique
+demeurera invariablement subordonnée à l'intelligibilité de l'expert humain.1 L'ingénierie future
+des modèles d'ensemble à grande échelle devra impérativement s'inscrire dans cet
+écosystème d'hybridation, assurant de manière indivisible la synergie entre la redoutable
+puissance discriminative des foules algorithmiques et la transparence d'un raisonnement
+causal responsable et auditable.
+
+Works cited
+1.​ main2.pdf
+2.​ XStacking: Explanation-Guided Stacked Ensemble Learning - arXiv, accessed
+
+March 8, 2026, https://arxiv.org/pdf/2507.17650
+3.​ Interpretable machine learning for chronic kidney disease prediction: Insights
+from SHAP and LIME analyses - Our journal portfolio - PLOS, accessed March 8,
+2026, https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0343205
+4.​ Explainable artificial intelligence (XAI) for predicting the need for intubation in
+methanol-poisoned patients: a study comparing deep and machine learning
+models - PMC, accessed March 8, 2026,
+https://pmc.ncbi.nlm.nih.gov/articles/PMC11231277/
+5.​ Interpreting artificial intelligence models: a systematic review on the application
+
+of LIME and SHAP in Alzheimer's disease detection - PMC, accessed March 8,
+2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC10997568/
+6.​ Explainable Machine Learning Model for Chronic Kidney Disease Prediction MDPI, accessed March 8, 2026, https://www.mdpi.com/1999-4893/17/10/443
+7.​ Chronic Kidney Disease - UCI Machine Learning Repository, accessed March 8,
+2026, https://archive.ics.uci.edu/dataset/336/chronic+kidney+disease
+8.​ Building a Chronic Kidney Disease Prediction Model Using Python and Machine
+Learning, accessed March 8, 2026,
+https://medium.com/@1032211306/building-a-chronic-kidney-disease-prediction
+-model-using-python-and-machine-learning-4f8a546e6c25
+9.​ Interpretable machine learning for chronic kidney disease prediction: Insights
+from SHAP and LIME analyses - PubMed, accessed March 8, 2026,
+https://pubmed.ncbi.nlm.nih.gov/41747002/
+10.​Accuracy is not enough: explainable boosting machine model and identification
+of candidate biomarkers for real-time sepsis risk assessment in the emergency
+department - PMC, accessed March 8, 2026,
+https://pmc.ncbi.nlm.nih.gov/articles/PMC12664189/
+11.​ Explainable AI for Chronic Kidney Disease Prediction in Medical IoT: Integrating
+GANs and Few-Shot Learning - PMC, accessed March 8, 2026,
+https://pmc.ncbi.nlm.nih.gov/articles/PMC12025083/
+12.​Machine Learning Techniques in Chronic Kidney Diseases: A Comparative Study
+of Classification Model Performance - PMC, accessed March 8, 2026,
+https://pmc.ncbi.nlm.nih.gov/articles/PMC12304504/
+13.​Investigation on explainable machine learning models to predict chronic kidney
+diseases, accessed March 8, 2026,
+https://pmc.ncbi.nlm.nih.gov/articles/PMC10866953/
+14.​1.10. Decision Trees — scikit-learn 1.8.0 documentation, accessed March 8, 2026,
+https://scikit-learn.org/stable/modules/tree.html
+15.​Decision Trees and Random Forests - explained with Python implementation.,
+accessed March 8, 2026,
+https://towardsdatascience.com/decision-trees-and-random-forests-explainedwith-python-implementation-e5ede021a000/
+16.​How to Visualize a Decision Tree from a Random Forest in Python using
+Scikit-Learn, accessed March 8, 2026,
+https://medium.com/data-science/how-to-visualize-a-decision-tree-from-a-rand
+om-forest-in-python-using-scikit-learn-38ad2d75f21c
+17.​interpretml/interpret: Fit interpretable models. Explain blackbox machine learning.
+- GitHub, accessed March 8, 2026, https://github.com/interpretml/interpret
+18.​Explainable Boosting Machine — InterpretML documentation, accessed March 8,
+2026, https://interpret.ml/docs/ebm.html
+19.​Train regression models using explainable boosting machines (preview) Microsoft Fabric, accessed March 8, 2026,
+https://learn.microsoft.com/en-us/fabric/data-science/explainable-boosting-mac
+hines-regression
+20.​WO2025084987A1 - Systems and methods for predicting kidney conditions -
+
+Google Patents, accessed March 8, 2026,
+https://patents.google.com/patent/WO2025084987A1/en?inventor=Koh+Yau+Luo
+ng&oq=Koh+Yau+Luong
+21.​Hands-on XAI with SHAP and LIME - Kaggle, accessed March 8, 2026,
+https://www.kaggle.com/code/yatrikshah/hands-on-xai-with-shap-and-lime
+22.​Trusting SHAP and LIME the Right Way - Medium, accessed March 8, 2026,
+https://medium.com/@pacosun/trusting-shap-and-lime-the-right-way-ccab78f0
+316b
+23.​Model Explainability: LIME & SHAP | by Beverly Wang - Medium, accessed March
+8, 2026,
+https://beverly-wang0005.medium.com/model-explainability-lime-shap-55c8bf6
+44ce0
+24.​cloudera/CML_AMP_Explainability_LIME_SHAP: Learn how to explain ML models
+using LIME and SHAP. - GitHub, accessed March 8, 2026,
+https://github.com/cloudera/CML_AMP_Explainability_LIME_SHAP
+25.​ryuzaki-ved/ckd_detection: This project focuses on predicting Chronic Kidney
+Disease (CKD) using neural networks. It involves comprehensive data
+preprocessing, exploratory data analysis, and model interpretability to provide a
+robust classification solution based on health records. - GitHub, accessed March
+8, 2026, https://github.com/ryuzaki-ved/ckd_detection
+26.​Stacking Ensemble Machine Learning With Python MachineLearningMastery.com, accessed March 8, 2026,
+https://machinelearningmastery.com/stacking-ensemble-machine-learning-withpython/
+27.​Introduction to Ensembling/Stacking in Python - Kaggle, accessed March 8, 2026,
+https://www.kaggle.com/code/arthurtok/introduction-to-ensembling-stacking-inpython
+28.​Building Random Forest From Scratch in Python - Medium, accessed March 8,
+2026,
+https://medium.com/@cristianleo120/building-random-forest-from-scratch-in-py
+thon-16d004982788
+29.​Machine Learning Hybrid Model for the Prediction of Chronic Kidney Disease PMC, accessed March 8, 2026,
+https://pmc.ncbi.nlm.nih.gov/articles/PMC10030216/
+30.​Random Forest in Python and coding it with Scikit-learn (tutorial) - Data36,
+accessed March 8, 2026, https://data36.com/random-forest-in-python/
+31.​From Local Explanations to Global Understanding with Explainable AI for Trees PMC - NIH, accessed March 8, 2026,
+https://pmc.ncbi.nlm.nih.gov/articles/PMC7326367/
+32.​SIRUS.jl: Interpretable Machine Learning via Rule Extraction - the University of
+Groningen research portal, accessed March 8, 2026,
+https://research.rug.nl/en/publications/sirusjl-interpretable-machine-learning-viarule-extraction/
+33.​SIRUS: Stable and Interpretable RUle Set for Classification, accessed March 8,
+2026, https://perso.lpsm.paris/~biau/BIAU/bbds.pdf
+
+34.​[ANN] SIRUS.jl v1.2: Interpretable Machine Learning via Rule Extraction - Julia
+
+Discourse, accessed March 8, 2026,
+https://discourse.julialang.org/t/ann-sirus-jl-v1-2-interpretable-machine-learningvia-rule-extraction/100932
+35.​A Unified Approach to Extract Interpretable Rules from Tree Ensembles via
+Integer Programming - arXiv.org, accessed March 8, 2026,
+https://arxiv.org/html/2407.00843v3
+36.​Article and book summaries by Vincent Zoonekynd (2025-10), accessed March 8,
+2026, http://zoonek.free.fr/Ecrits/articles.pdf
+37.​GitHub - csinva/imodels: Interpretable ML package for concise, transparent, and
+accurate predictive modeling (sklearn-compatible)., accessed March 8, 2026,
+https://github.com/csinva/imodels
+38.​A Unified Approach to Extract Intepretable Rules from Tree Ensembles via Integer
+Programming - arXiv.org, accessed March 8, 2026,
+https://arxiv.org/html/2407.00843v1
+39.​A New Method to Compare the Interpretability of Rule-Based Algorithms - MDPI,
+accessed March 8, 2026, https://www.mdpi.com/2673-2688/2/4/37
+40.​Distilling a Random Forest to a single DecisionTree - Machine Learning Blog,
+accessed March 8, 2026,
+http://www.clungu.com/Distilling_a_Random_Forest_with_a_single_DecisionTree/
+41.​Random-Forest Distillation: Theory and Practice - Emergent Mind, accessed
+March 8, 2026, https://www.emergentmind.com/topics/random-forest-distillation
+42.​Knowledge distillation from random forests : r/learnmachinelearning - Reddit,
+accessed March 8, 2026,
+https://www.reddit.com/r/learnmachinelearning/comments/bdi3wv/knowledge_di
+stillation_from_random_forests/
+43.​Using Explainable Boosting Machine to Compare Idiographic and Nomothetic
+Approaches for Ecological Momentary Assessment Data - ResearchGate,
+accessed March 8, 2026,
+https://www.researchgate.net/publication/359767947_Using_Explainable_Boosting
+_Machine_to_Compare_Idiographic_and_Nomothetic_Approaches_for_Ecologica
+l_Momentary_Assessment_Data
+44.​A Gentle Introduction to SHAP for Tree-Based Models MachineLearningMastery.com, accessed March 8, 2026,
+https://machinelearningmastery.com/a-gentle-introduction-to-shap-for-tree-bas
+ed-models/
+45.​Explaining Model Pipelines With InterpretML | by Marius Vadeika - Medium,
+accessed March 8, 2026,
+https://medium.com/@mariusvadeika/explaining-model-pipelines-with-interpret
+ml-a9214f75400b
+46.​GitHub - vecxoz/vecstack: Python package for stacking (machine learning
+technique), accessed March 8, 2026, https://github.com/vecxoz/vecstack
+47.​Comprehensive Analysis of Random Forest and XGBoost Performance with
+SMOTE, ADASYN, and GNUS Under Varying Imbalance Levels - MDPI, accessed
+March 8, 2026, https://www.mdpi.com/2227-7080/13/3/88
+
+48.​Graphical abstract illustrates RocketStack framework - arXiv.org, accessed March
+
+8, 2026, https://arxiv.org/html/2506.16965v3
+49.​XStacking: Explanation-Augmented Stacking - Emergent Mind, accessed March 8,
+2026,
+https://www.emergentmind.com/topics/explanation-augmented-stacking-xstacki
+ng
+50.​DESlib: A Dynamic ensemble selection library in Python - Journal of Machine
+Learning Research, accessed March 8, 2026,
+https://jmlr2020.csail.mit.edu/papers/volume21/18-144/18-144.pdf
+51.​Dynamic Ensemble Selection (DES) for Classification in Python - Machine
+Learning Mastery, accessed March 8, 2026,
+https://machinelearningmastery.com/dynamic-ensemble-selection-in-python/
+52.​Tutorial — deslib 0.4.dev documentation, accessed March 8, 2026,
+https://deslib.readthedocs.io/en/latest/user_guide/tutorial.html
+53.​From dynamic classifier selection to dynamic ensemble selection - biz.uiowa.edu,
+accessed March 8, 2026, https://www.biz.uiowa.edu/faculty/nstreet/ko07.pdf
+54.​interpretml/DiCE: Generate Diverse Counterfactual Explanations for any machine
+learning model. - GitHub, accessed March 8, 2026,
+https://github.com/interpretml/DiCE
+55.​15 Counterfactual Explanations – Interpretable Machine Learning - Christoph
+Molnar, accessed March 8, 2026,
+https://christophm.github.io/interpretable-ml-book/counterfactual.html
+56.​Quick introduction to generating counterfactual explanations using ..., accessed
+March 8, 2026, https://interpret.ml/DiCE/notebooks/DiCE_getting_started.html
+57.​Predicting chronic kidney disease progression using small pathology datasets and
+explainable machine learning models | medRxiv, accessed March 8, 2026,
+https://www.medrxiv.org/content/10.1101/2024.04.08.24305414v1.full-text
+58.​Distilling a Random Forest to a single DecisionTree, does it make sense?,
+accessed March 8, 2026,
+https://datascience.stackexchange.com/questions/121686/distilling-a-random-for
+est-to-a-single-decisiontree-does-it-make-sense
+59.​Explainable Boosting machines for Tabular data - Kaggle, accessed March 8,
+2026,
+https://www.kaggle.com/code/parulpandey/explainable-boosting-machines-for-t
+abular-data
+
+

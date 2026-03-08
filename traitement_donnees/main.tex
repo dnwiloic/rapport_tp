@@ -1,1 +1,94 @@
-\section{Pretraitement et visualisation des donnes}
+\section{Prétraitement et visualisation des données}
+
+Cette section décrit la chaîne de prétraitement et d'exploration du jeu de données \emph{Chronic Kidney Disease} (CKD) du dépôt UCI. L'objectif est de préparer les données pour les modèles d'explicabilité présentés aux sections suivantes : nettoyage, gestion des manquants, encodage, visualisation, puis découpage et équilibrage des classes. Toutes les étapes décrites correspondent à l'implémentation du notebook associé.
+
+\subsection{Chargement et nettoyage}
+
+Le jeu \texttt{kidney\_disease.csv} contient 400 observations et 25 attributs (après suppression de l'identifiant). La cible est binaire : présence ou absence de maladie rénale chronique (CKD). La structure comprend :
+\begin{itemize}[noitemsep]
+\item \textbf{Variables numériques} (14) : âge, tension artérielle (\emph{blood\_pressure}), gravité spécifique (\emph{specific\_gravity}), albumine, sucre, glucose sanguin, urée, créatinine sérique, sodium, potassium, hémoglobine, volume cellulaire, globules blancs/rouges, etc.
+\item \textbf{Variables catégorielles} (10) : globules rouges, cellules de pus, bactéries, hypertension, diabète, maladie coronarienne, appétit, œdème, anémie, etc.
+\end{itemize}
+
+Les colonnes ont été renommées de façon explicite (ex.\ \texttt{bp} $\to$ \texttt{blood\_pressure}). Certaines colonnes initialement en format texte ont été converties en numérique (\emph{packed\_cell\_volume}, \emph{white\_blood\_cell\_count}, \emph{red\_blood\_cell\_count}). Les valeurs catégorielles erronées (espaces, tabulations) ont été normalisées ; la cible a été encodée en binaire (0 = CKD, 1 = non CKD), et les lignes sans étiquette valide ont été supprimées (\texttt{dropna(subset=['class'])}).
+
+\begin{lstlisting}[style=reportPython]
+df = pd.read_csv('kidney_disease.csv')
+df.drop('id', axis=1, inplace=True)
+df.columns = ['age', 'blood_pressure', 'specific_gravity', ...]
+df['packed_cell_volume'] = pd.to_numeric(df['packed_cell_volume'], errors='coerce')
+df['white_blood_cell_count'] = pd.to_numeric(df['white_blood_cell_count'], errors='coerce')
+df['red_blood_cell_count'] = pd.to_numeric(df['red_blood_cell_count'], errors='coerce')
+df['class'] = df['class'].map({'ckd': 0, 'not ckd': 1})
+df = df.dropna(subset=['class'])
+\end{lstlisting}
+
+\subsection{Gestion des valeurs manquantes et encodage}
+
+Les valeurs manquantes ont été traitées de la manière suivante :
+\begin{itemize}[noitemsep]
+\item \textbf{Variables numériques} : imputation par \textbf{KNN} (k plus proches voisins) avec $k = 5$ voisins (\texttt{KNNImputer} de scikit-learn), afin de préserver la structure locale des données.
+\item \textbf{Variables catégorielles} : remplacement des manquants par le \textbf{mode} de chaque colonne.
+\end{itemize}
+
+\begin{lstlisting}[style=reportPython]
+knn_imputer = KNNImputer(n_neighbors=5)
+df[num_cols] = knn_imputer.fit_transform(df[num_cols])
+for col in cat_cols:
+    mode_val = df[col].mode()[0]
+    df[col] = df[col].fillna(mode_val)
+\end{lstlisting}
+
+Ensuite, toutes les variables catégorielles ont été encodées numériquement à l'aide d'un \textbf{LabelEncoder} (une valeur entière par modalité), ce qui permet d'obtenir une matrice entièrement numérique pour la corrélation et les modèles.
+
+\begin{lstlisting}[style=reportPython]
+le = LabelEncoder()
+for col in cat_cols:
+    df[col] = le.fit_transform(df[col].astype(str))
+X = df.drop(columns=['class'])
+y = df['class']
+feature_names = X.columns.tolist()
+\end{lstlisting}
+
+\subsection{Visualisation des données}
+
+La figure~\ref{fig:dist-num} présente les distributions des variables numériques (histogrammes). On observe des échelles et des formes variées (âge, pression, créatinine, hémoglobine, etc.), ce qui justifie l'utilisation d'un \emph{StandardScaler} en aval pour les algorithmes sensibles à l'échelle.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{01_distributions_numeriques.png}
+\caption{Distributions des variables numériques du jeu CKD (après imputation).}
+\label{fig:dist-num}
+\end{figure}
+
+La figure~\ref{fig:countplot} montre les effectifs des modalités pour les variables catégorielles (avant encodage). Cela permet de vérifier l'équilibre relatif des catégories et d'identifier d'éventuelles modalités rares.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{02_categories_countplot.png}
+\caption{Effectifs des variables catégorielles (avant encodage).}
+\label{fig:countplot}
+\end{figure}
+
+La figure~\ref{fig:heatmap} présente la matrice de corrélation. Les variables déjà encodées sont incluses ; on peut repérer les paires d'attributs fortement corrélés (ex.\ hémoglobine et volume cellulaire), utiles pour l'interprétation des modèles.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.90\textwidth]{03_heatmap_corr.png}
+\caption{Matrice de corrélation (triangle inférieur) entre toutes les variables du jeu CKD.}
+\label{fig:heatmap}
+\end{figure}
+
+\subsection{Découpage et équilibrage}
+
+Le jeu préparé est divisé en ensembles d'entraînement et de test par \textbf{découpage stratifié} (\%~70 / 30) pour conserver les proportions de classes. La classe CKD étant souvent déséquilibrée, un rééquilibrage est appliqué sur l'ensemble d'entraînement uniquement avec \textbf{SMOTE} (technique de surotéchantillonnage de la minorité synthétique), avec $k = 3$ voisins, afin d'obtenir des effectifs de classes plus proches. Enfin, les variables numériques sont mises à l'échelle avec un \textbf{StandardScaler} (moyenne 0, écart-type 1), ajusté sur l'ensemble d'entraînement (après SMOTE) et appliqué aux données d'entraînement et de test. Les matrices ainsi obtenues (\texttt{X\_train\_scaled}, \texttt{X\_test\_scaled}) et les étiquettes associées sont utilisées dans les sections suivantes pour la régression logistique, l'arbre de décision, le SVM, LIME et SHAP.
+
+\begin{lstlisting}[style=reportPython]
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.30, stratify=y, random_state=RANDOM_STATE)
+smote = SMOTE(random_state=RANDOM_STATE, k_neighbors=3)
+X_train_smote, y_train_smote = smote.fit_resample(X_train, y_train)
+scaler = StandardScaler()
+X_train_scaled = pd.DataFrame(scaler.fit_transform(X_train_smote), columns=feature_names)
+X_test_scaled = pd.DataFrame(scaler.transform(X_test), columns=feature_names, index=X_test.index)
+\end{lstlisting}

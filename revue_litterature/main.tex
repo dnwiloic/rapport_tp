@@ -1,1 +1,42 @@
-\section{Etat de l'art}
+\section{État de l'art}
+\label{sec:etat-art}
+
+Cette section présente cinq articles consacrés à la prédiction de la maladie rénale chronique par apprentissage automatique. Chaque article est résumé ci-dessous~; le tableau~\ref{tab:ckd-articles} en donne une vue synthétique.
+
+\paragraph{Almansour et al. (2022) \cite{almansour2022ckd}.}
+Les auteurs comparent la forêt aléatoire, la machine à vecteurs de support et l'arbre de décision pour la prédiction et le staging de la maladie rénale chronique. La sélection de variables repose sur l'analyse de variance et l'élimination récursive des variables avec validation croisée. La forêt aléatoire avec élimination récursive surpasse la machine à vecteurs de support et l'arbre. L'étude souligne l'importance d'une détection précoce des stades de maladie rénale chronique pour limiter les complications (hypertension, anémie, troubles minéraux, etc.). Publication dans \emph{Journal of Big Data}.
+
+\paragraph{Swapna et Chandra (2021) \cite{swapna2021ckd}.}
+Sur le jeu UCI maladie rénale chronique (400 observations, 25 paramètres), les auteurs combinent la forêt aléatoire et AdaBoost via un classifieur à vote. Le prétraitement inclut l'imputation des valeurs manquantes (en tenant compte de l'asymétrie) et une sélection de variables par corrélation. Le modèle hybride atteint jusqu'à 100\,\% d'exactitude selon les sous-ensembles de variables, avec validation sur plusieurs métriques (exactitude, précision, rappel, F1). Publication dans \emph{EAI Endorsed Transactions on Pervasive Health and Technology}.
+
+\paragraph{Swain et al. (2023) \cite{swain2023ckd}.}
+Les auteurs construisent un classifieur de maladie rénale chronique à partir de jeux publics en appliquant une imputation des manquants, un équilibrage des classes par surotéchantillonnage et une mise à l'échelle, puis une sélection de variables par test du Chi-carré. La machine à vecteurs de support et la forêt aléatoire sont comparées en validation croisée 10 folds~: la machine à vecteurs de support obtient la meilleure exactitude (99,33\,\%), devant la forêt aléatoire (98,67\,\%). L'objectif est de réduire l'incertitude clinique en automatisant l'analyse des marqueurs. Publication dans \emph{Electronics}.
+
+\paragraph{Singh et al. (2024) \cite{ckd_xai_nature2024}.}
+Sur 491 patients (56 avec maladie rénale chronique, 435 sans), cinq modèles sont évalués (régression logistique, forêt aléatoire, arbre, Naïve Bayes, XGBoost) et expliqués par les méthodes SHAP et LIME. XGBoost obtient la meilleure performance (aire sous la courbe ROC 0,97, exactitude 93,29\,\%). Les variables les plus influentes sont la créatinine, l'hémoglobine glyquée et l'âge. L'étude montre que SHAP et LIME améliorent l'interprétabilité pour les cliniciens et favorisent une prédiction précoce de la maladie rénale chronique. Publication dans \emph{Scientific Reports}.
+
+\paragraph{Gogoi et al. (2024) \cite{gogoi2025ckd_shap}.}
+Sur le jeu UCI maladie rénale chronique (400 exemples, 24 attributs), les auteurs utilisent une imputation par k plus proches voisins et une sélection de variables par algorithme génétique, puis comparent la forêt aléatoire, l'arbre de décision, la régression logistique et XGBoost. XGBoost atteint 99,17\,\% d'exactitude~; après sélection par algorithme génétique, la forêt aléatoire et la régression logistique atteignent aussi 99,17\,\%. L'analyse SHAP identifie quatre variables dominantes~: créatinine sérique, hémoglobine, gravité spécifique, albumine. Le système associe performance et interprétabilité pour la décision clinique. Publication dans \emph{Discover Artificial Intelligence} (Springer).
+
+\begin{table}[H]
+\centering
+\caption{Vue synthétique des cinq articles sur la prédiction de la maladie rénale chronique.}
+\label{tab:ckd-articles}
+\small
+\begin{tabularx}{\textwidth}{|p{2.4cm}|c|p{2.6cm}|p{3.2cm}|p{2.4cm}|}
+\toprule
+\textbf{Référence} & \textbf{Année} & \textbf{Données} & \textbf{Méthodes} & \textbf{Performance} \\
+\midrule
+Almansour et al. \cite{almansour2022ckd} & 2022 & Maladie rénale chronique, binaire et stades & Forêt aléatoire, machine à vecteurs de support, arbre~; élimination récursive & Forêt aléatoire meilleure \\
+Swapna \& Chandra \cite{swapna2021ckd} & 2021 & UCI, 400 observations, 25 variables & Forêt aléatoire + AdaBoost, vote & Jusqu'à 100\,\% \\
+Swain et al. \cite{swain2023ckd} & 2023 & Maladie rénale chronique, jeu public & Surotéchantillonnage, Chi-carré~; machine à vecteurs de support, forêt aléatoire & 99,33\,\% et 98,67\,\% \\
+Singh et al. \cite{ckd_xai_nature2024} & 2024 & 491 patients & Régression logistique, forêt aléatoire, arbre, Naïve Bayes, XGBoost~; SHAP, LIME & XGBoost aire 0,97, 93\,\% \\
+Gogoi et al. \cite{gogoi2025ckd_shap} & 2024 & UCI, 400 exemples, 24 variables & k plus proches voisins, algorithme génétique~; forêt aléatoire, arbre, régression logistique, XGBoost~; SHAP & XGBoost 99,17\,\%, 4 variables clés \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Positionnement de notre étude}
+\label{ssec:positionnement}
+
+Ces travaux convergent sur l'importance du prétraitement (imputation par k plus proches voisins ou similaire, surotéchantillonnage, sélection de variables) et sur des performances élevées (exactitude typiquement $>$95\,\%, souvent 98--99\,\%) pour la forêt aléatoire, la machine à vecteurs de support, XGBoost et la régression logistique. Les variables les plus prédictives (créatinine, hémoglobine, gravité spécifique, albumine) sont cohérentes avec les marqueurs cliniques de la maladie rénale chronique. Les articles récents intègrent l'explicabilité (SHAP, LIME) pour rendre les prédictions utilisables en clinique. Notre rapport s'inscrit dans cette lignée en combinant un prétraitement reproductible sur le jeu UCI (k plus proches voisins, mode, LabelEncoder, surotéchantillonnage, StandardScaler), des modèles intrinsèquement interprétables (régression logistique, arbre), une machine à vecteurs de support expliquée par LIME et SHAP, et l'explicabilité des modèles d'ensemble via TreeSHAP (cas~3).
